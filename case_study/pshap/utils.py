@@ -46,7 +46,7 @@ def return_model(mode, **kwargs):
         kernel = kwargs.get('kernel', 'rbf')
         C = kwargs.get('C', 0.05)  # 1.
         max_iter = kwargs.get('max_iter', 5000)
-        model = SVC(kernel=kernel, max_iter=max_iter, C=C, random_state=666)
+        model = SVC(kernel=kernel, max_iter=max_iter, C=C, random_state=666, probability=True)
     elif mode == 'LinearSVC':
         C = kwargs.get('C', 0.05)  # 1.
         max_iter = kwargs.get('max_iter', 5000)
