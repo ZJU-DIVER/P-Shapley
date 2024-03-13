@@ -14,12 +14,18 @@ Simple accuracy is not sufficient for evaluting the performance of a classifier.
 
 ### How to Reproduce the Experimental Results
 
+A detailed guide to run the code and reproduce all experiments can be found here: [vldb24-reproducibility](./vldb24-reproducibility.md).
+
 ```text
 .
 ├── data_preprocess  # Extract features from image datasets
 ├── case_study       # Case study for Section 3.3
 └── experiment       # Experiments for Section 5
 ```
+
+## Examples
+
+
 
 ## BibTeX citation
 
@@ -30,5 +36,5 @@ TBD
 ## Correspondence
 
 :mailbox_with_mail: [Haocheng Xia](mailto:xiahc@zju.edu.cn) | :scroll: [Homepage](https://haochengxia.com/) <br>
-:mailbox_with_mail: [Xiang Li](mailto:xiahc@zju.edu.cn) <br>
-:mailbox_with_mail: [Junyuan Pang](mailto:xiahc@zju.edu.cn) <br>
+:mailbox_with_mail: [Xiang Li](mailto:lixiangzx@zju.edu.cn) <br>
+:mailbox_with_mail: [Junyuan Pang](mailto:junyuanpang@zju.edu.cn) <br>
