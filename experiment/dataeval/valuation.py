@@ -1,6 +1,9 @@
 
 from sklearn.linear_model import LogisticRegression as LR
+from sklearn.metrics import accuracy_score
+import concurrent.futures
 from .util import get_model
+## Local module: load data valuation methods
 from .loo import loo
 from .P_Shapley import truncated_mc
 from .beta_shapley import beta_shapley
@@ -26,12 +29,17 @@ class DataValuation(object):
         self.params = params.get_values()
 
 
-    def estimate(self, clf=None, method='loo', params=None):
+    def estimate(self, clf=None, method='loo', dataset = None, params=None):
+        '''
+        clf - a classifier instance (Logistic regression, by default)
+        method - the data valuation method (LOO, by default)
+        params - hyper-parameters for data valuation methods
+        '''
         self.values = {}
         if clf is None or clf == 'LR':
             self.clf = LR(solver="liblinear", max_iter=500, random_state=0)
         else:
-            self.clf = get_model(clf)
+            self.clf = get_model(clf, method, dataset)
 
         if params is not None:
             print("Overload the model parameters with the user specified ones: {}".format(params))
@@ -49,6 +57,10 @@ class DataValuation(object):
             #
             valsdict = truncated_mc(self.trnX, self.trnY, self.devX, self.devY,
                                    self.clf, n_iter, tmc_thresh)
+            # for method in len(vals):
+            #     for idx in range(len(method)):
+            #         self.values[idx] = vals[method][idx]
+            #     self.valuesList.append(self.values)
             return valsdict
 
         elif method == 'beta-shapley':

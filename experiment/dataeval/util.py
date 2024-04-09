@@ -1,3 +1,4 @@
+
 from math import factorial
 from sklearn.metrics import accuracy_score, roc_auc_score, log_loss, f1_score
 from sklearn.preprocessing import LabelEncoder
@@ -19,18 +20,12 @@ from scipy.stats import kendalltau, ttest_ind
 from sklearn.cluster import KMeans
 
 seed = 2024
-
-
 def get_seed():
     return seed
-
-
 def set_seed(x):
     global seed
     seed = x
-
-
-def get_model(mode, **kwargs):
+def get_model(mode, method = None, dataset = None, **kwargs):
     '''
     Define a model to be used in computation of data values
     '''
@@ -46,52 +41,56 @@ def get_model(mode, **kwargs):
     #     max_iter = kwargs.get('max_iter', 5000)
     #     model = LogisticRegression(solver=solver, n_jobs=n_jobs, C=C,
     #                                max_iter=max_iter, random_state=666)
-    elif mode == 'linear':
+    elif mode=='linear':
         n_jobs = kwargs.get('n_jobs', -1)
         model = LinearRegression(n_jobs=n_jobs)
-    elif mode == 'ridge':
+    elif mode=='ridge':
         alpha = kwargs.get('alpha', 1.0)
         model = Ridge(alpha=alpha, random_state=666)
-    elif mode == 'Tree':
+    elif mode=='Tree':
         model = DecisionTreeClassifier(random_state=666)
-    elif mode == 'RandomForest':
+    elif mode=='RandomForest':
         n_estimators = kwargs.get('n_estimators', 50)
         model = RandomForestClassifier(n_estimators=n_estimators, random_state=666)
-    elif mode == 'GB':
+    elif mode=='GB':
         n_estimators = kwargs.get('n_estimators', 50)
         model = GradientBoostingClassifier(n_estimators=n_estimators, random_state=666)
-    elif mode == 'AdaBoost':
+    elif mode=='AdaBoost':
         n_estimators = kwargs.get('n_estimators', 50)
         model = AdaBoostClassifier(n_estimators=n_estimators, random_state=666)
-    elif mode == 'SVC':
+    elif mode=='SVC':
         kernel = kwargs.get('kernel', 'rbf')
-        C = kwargs.get('C', 0.5)  # 1.
+        if method == "loo":
+            C = kwargs.get('C', 0.5) # 1.
+        else:
+            if "fmnist" in dataset:
+                C = kwargs.get('C', 0.05) # 1.
+            else:
+                C = kwargs.get('C', 0.1) # 1.
         max_iter = kwargs.get('max_iter', 5000)
         model = SVC(probability=True, kernel=kernel, max_iter=max_iter, C=C, random_state=42)
-    elif mode == 'SVC-GS':
+    elif mode=='SVC-GS':
         kernel = kwargs.get('kernel', 'rbf')
-        C = kwargs.get('C', 0.05)  # 1.
+        C = kwargs.get('C', 0.05) # 1.
         max_iter = kwargs.get('max_iter', 5000)
         model = SVC(probability=True, kernel=kernel, max_iter=max_iter, C=C, random_state=666)
-    elif mode == 'LinearSVC':
-        C = kwargs.get('C', 0.05)  # 1.
+    elif mode=='LinearSVC':
+        C = kwargs.get('C', 0.05) # 1.
         max_iter = kwargs.get('max_iter', 5000)
         model = LinearSVC(loss='hinge', max_iter=max_iter, C=C, random_state=666)
-    elif mode == 'GP':
+    elif mode=='GP':
         model = GaussianProcessClassifier(random_state=666)
-    elif mode == 'KNN':
+    elif mode=='KNN':
         n_neighbors = kwargs.get('n_neighbors', 5)
         n_jobs = kwargs.get('n_jobs', -1)
         model = KNeighborsClassifier(n_neighbors=n_neighbors, n_jobs=n_jobs)
-    elif mode == 'NB':
+    elif mode=='NB':
         model = MultinomialNB()
     else:
         raise ValueError("Invalid mode!")
     return model
-
-
 def get_dataset(dataset, path, noise=False):
-    if (dataset == "gaussian"):
+    if(dataset == "gaussian"):
         return load_classification_dataset()
     else:
         data = pickle.load(open(path, 'rb'))
@@ -109,8 +108,7 @@ def get_dataset(dataset, path, noise=False):
         print("Dimensions of data: {}".format(trnX.shape[1]))
         print("Number of training examples: {}".format(trnX.shape[0]))
         print("Labels: ", trnY[:10], devY[:10], tstY[:10])
-        print("Labels : ", sum(trnY), len(trnY) - sum(trnY), sum(devY), len(devY) - sum(devY), sum(tstY),
-              len(tstY) - sum(tstY))
+        print("Labels : ", sum(trnY), len(trnY) - sum(trnY), sum(devY), len(devY) - sum(devY), sum(tstY), len(tstY) - sum(tstY))
         print("Number of validation/development examples: {}/{}".format(devX.shape[0], tstX.shape[0]))
         if noise:
             num = len(list(set(trnY)))
@@ -118,7 +116,6 @@ def get_dataset(dataset, path, noise=False):
                 if i % 10 == 1:
                     trnY[i] = (trnY[i] + 1) % num
         return trnX, trnY, devX, devY, tstX, tstY
-
 
 def load_classification_dataset(n_data_to_be_valued=200,
                                 n_val=100,
@@ -162,7 +159,6 @@ def load_classification_dataset(n_data_to_be_valued=200,
 
     return X, y, X_val, y_val, X_test, y_test
 
-
 def m_cross_entropy(y_true, y_prob):
     # Only one class in y_true for each call. Lead to error
     # if len(y_prob[0]) <= 2:
@@ -170,7 +166,6 @@ def m_cross_entropy(y_true, y_prob):
     # else:
     #     # multi-class classification
     return np.sum([np.log(y_prob[i, y_true[i]]) for i in range(len(y_true))])
-
 
 def get_utility(x_train, y_train, x_valid, y_valid, clf, metric='accuracy'):
     """_summary_
@@ -212,8 +207,16 @@ def get_utility(x_train, y_train, x_valid, y_valid, clf, metric='accuracy'):
                 rnd_y = np.random.permutation(y_valid)
                 rnd_f1s.append(f1_score(y_valid, rnd_y))
             return np.mean(rnd_f1s)
+    elif metric =='log-loss':
+        try:
+            clf.fit(x_train,y_train)
+            y_prob = clf.predict_proba(x_valid)
+            acc = log_loss(y_valid, y_prob)
+        except ValueError:
+            rnd_probs = [0.5] * len(y_valid)
+            acc = log_loss(y_valid, rnd_probs)
+        return acc
     return acc
-
 
 def get_utility_prob(x_train, y_train, x_valid, y_valid, clf, num_classes):
     """_summary_
@@ -263,7 +266,7 @@ def m_brier_score(y_true, y_prob, **kwargs):
 
     Returns:
         int: Brier score
-
+        
     Example:
     --------
     y_true = [0, 1, 1, 0]
@@ -277,8 +280,8 @@ def m_brier_score(y_true, y_prob, **kwargs):
     y_true_padding = np.zeros(shape=np.shape(y_prob))
     for i in range(num_events):
         y_true_padding[i, y_true[i]] = 1
-
-    return np.average((y_prob - y_true_padding) ** 2,
+        
+    return np.average((y_prob -  y_true_padding) ** 2, 
                       weights=sample_weight)
 
 
@@ -286,13 +289,12 @@ def brier_skill_score(y_true, y_prob, y_prob_ref, **kwargs):
     """Compute the Brier skill score
     """
     sample_weight = kwargs.get("sample_weight", None)
-
-    bsf = m_brier_score(y_true, y_prob,
+    
+    bsf = m_brier_score(y_true, y_prob, 
                         sample_weight=sample_weight)
-    bsref = m_brier_score(y_true, y_prob_ref,
+    bsref = m_brier_score(y_true, y_prob_ref, 
                           sample_weight=sample_weight)
     return 1 - bsf / bsref
-
 
 def brier_score_sqrt(y_true, y_prob, **kwargs):
     sample_weight = kwargs.get("sample_weight", None)
@@ -302,12 +304,11 @@ def brier_score_sqrt(y_true, y_prob, **kwargs):
         return 0
     return np.sqrt(1 - res)
 
-
 def weight(j, n, alpha=1.0, beta=1.0):
     log_1, log_2, log_3 = 0.0, 0.0, 0.0
     for k in range(1, j):
         log_1 += np.log(beta + k - 1)
-    for k in range(1, n - j + 1):
+    for k in range(1, n-j+1):
         log_2 += np.log(alpha + k - 1)
     for k in range(1, n):
         log_3 += np.log(alpha + beta + k - 1)
@@ -315,44 +316,48 @@ def weight(j, n, alpha=1.0, beta=1.0):
     # print("n = {}, j = {}".format(n, j))
     log_comb = None
     if n <= 20:
-        log_comb = np.log(factorial(n - 1))
+        log_comb = np.log(factorial(n-1))
     else:
-        log_comb = (n - 1) * (np.log(n - 1) - 1)
+        log_comb = (n-1)*(np.log(n-1) - 1)
     if j <= 20:
-        log_comb -= np.log(factorial(j - 1))
+        log_comb -= np.log(factorial(j-1))
     else:
-        log_comb -= (j - 1) * (np.log(j - 1) - 1)
-    if (n - j) <= 20:
-        log_comb -= np.log(factorial(n - j))
+        log_comb -= (j-1)*(np.log(j-1) - 1)
+    if (n-j) <= 20:
+        log_comb -= np.log(factorial(n-j))
     else:
-        log_comb -= (n - j) * (np.log(n - j) - 1)
+        log_comb -= (n-j)*(np.log(n-j) - 1)
     # print("log_total = {}, log_comb = {}".format(log_total, log_comb))
     v = np.exp(log_comb + log_total)
     # print("v = {}".format(v))
     return v
 
 
-def gr_statistic(val, t):
-    v = val[:, :, 1:t + 1]
-    sample_var = np.var(v, axis=2, ddof=1)  # N x K, along dimension T
-    mean_sample_var = np.mean(sample_var, axis=1)  # N, along dimension K, s^2 in the paper
-    sample_mean = np.mean(v, axis=2)  # N x K, along dimension T
-    sample_mean_var = np.var(sample_mean, axis=1, ddof=1)  # N, along dimension K, B/n in the paper
-    sigma_hat_2 = ((t - 1) * mean_sample_var) / t + sample_mean_var
-    rho_hat = np.sqrt(sigma_hat_2 / (mean_sample_var + 1e-4))
+def gr_statistic(val,t):
+    v = val[:,:,1:t+1]
+    sample_var = np.var(v, axis=2, ddof=1) # N x K, along dimension T
+    mean_sample_var = np.mean(sample_var, axis=1) # N, along dimension K, s^2 in the paper
+    sample_mean = np.mean(v, axis=2) # N x K, along dimension T
+    sample_mean_var = np.var(sample_mean, axis=1, ddof=1) # N, along dimension K, B/n in the paper
+    sigma_hat_2 = ((t-1)*mean_sample_var)/t + sample_mean_var
+    rho_hat = np.sqrt(sigma_hat_2/(mean_sample_var + 1e-4))
     return rho_hat
+
+
+
+
 
 
 def data_removal_figure(neg_lab, pos_lab, trnX, trnY, devX, devY, sorted_dct, clf_label, remove_high_value=True):
     # Create data indices for data removal
     N = trnX.shape[0]
-    Idx_keep = [True] * N
+    Idx_keep = [True]*N
     # Accuracy list
     accs = []
     if remove_high_value:
-        lst = range(N)
+      lst = range(N)
     else:
-        lst = range(N - 1, -1, -1)
+      lst = range(N-1, -1, -1)
     # Compute
     clf = Classifier(clf_label)
     clf.fit(trnX, trnY)
@@ -373,13 +378,14 @@ def data_removal_figure(neg_lab, pos_lab, trnX, trnY, devX, devY, sorted_dct, cl
         else:
             print(i)
 
-    acc_0 = accuracy_score(dev_Y0, clf.predict(dev_X0), normalize=False) / len(devY)
-    acc_1 = accuracy_score(dev_Y1, clf.predict(dev_X1), normalize=False) / len(devY)
+
+    acc_0 = accuracy_score(dev_Y0, clf.predict(dev_X0), normalize=False)/len(devY)
+    acc_1 = accuracy_score(dev_Y1, clf.predict(dev_X1), normalize=False)/len(devY)
     print(acc_0, acc_1)
 
     accs_0 = []
     accs_1 = []
-    acc = accuracy_score(clf.predict(devX), devY)  # /len(devY)
+    acc = accuracy_score(clf.predict(devX), devY)#/len(devY)
     accs.append(acc)
     accs_0.append(acc_0)
     accs_1.append(acc_1)
@@ -400,8 +406,8 @@ def data_removal_figure(neg_lab, pos_lab, trnX, trnY, devX, devY, sorted_dct, cl
             labels.append(trnY[k])
             points.append(trnX[k])
             acc = accuracy_score(clf.predict(devX), devY)
-            acc_0 = accuracy_score(dev_Y0, clf.predict(dev_X0), normalize=False) / len(devY)
-            acc_1 = accuracy_score(dev_Y1, clf.predict(dev_X1), normalize=False) / len(devY)
+            acc_0 = accuracy_score(dev_Y0, clf.predict(dev_X0), normalize=False)/len(devY)
+            acc_1 = accuracy_score(dev_Y1, clf.predict(dev_X1), normalize=False)/len(devY)
             # print('acc = {}'.format(acc))
             ks.append(k)
             accs.append(acc)
@@ -414,7 +420,9 @@ def data_removal_figure(neg_lab, pos_lab, trnX, trnY, devX, devY, sorted_dct, cl
     return accs, accs_0, accs_1, vals, labels, points, ks
 
 
-if __name__ == "__main__":
+
+
+if __name__=="__main__":
     dataset = "wind"
     trnX, trnY, devX, devY, tstX, tstY = get_dataset(dataset, '../../data/{}.pkl'.format(dataset), noise=False)
     print(trnY[:20])
@@ -424,4 +432,4 @@ if __name__ == "__main__":
 
 
 
-
+        
